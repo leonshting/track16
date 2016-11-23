@@ -11,6 +11,7 @@ import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import track.messenger.messages.LoginMessage;
 import track.messenger.messages.Message;
 import track.messenger.messages.TextMessage;
 import track.messenger.messages.Type;
@@ -117,7 +118,11 @@ public class MessengerClient {
         String cmdType = tokens[0];
         switch (cmdType) {
             case "/login":
-                // TODO: реализация
+                LoginMessage loginMessage = new LoginMessage();
+                loginMessage.setType(Type.MSG_LOGIN);
+                loginMessage.setPassWord(tokens[1]);
+                loginMessage.setUserName(tokens[2]);
+                send(loginMessage);
                 break;
             case "/help":
                 // TODO: реализация
@@ -149,7 +154,7 @@ public class MessengerClient {
 
         MessengerClient client = new MessengerClient();
         client.setHost("localhost");
-        client.setPort(19000);
+        client.setPort(9999);
         client.setProtocol(new StringProtocol());
 
         try {

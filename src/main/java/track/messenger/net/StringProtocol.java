@@ -3,6 +3,7 @@ package track.messenger.net;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import track.messenger.messages.LoginMessage;
 import track.messenger.messages.Message;
 import track.messenger.messages.TextMessage;
 import track.messenger.messages.Type;
@@ -12,7 +13,7 @@ import track.messenger.messages.Type;
  */
 public class StringProtocol implements Protocol {
 
-    static Logger log = LoggerFactory.getLogger(StringProtocol.class);
+    static private Logger log = LoggerFactory.getLogger(StringProtocol.class);
 
     public static final String DELIMITER = ";";
 
@@ -29,6 +30,13 @@ public class StringProtocol implements Protocol {
                 textMsg.setText(tokens[2]);
                 textMsg.setType(type);
                 return textMsg;
+            case MSG_LOGIN:
+                LoginMessage loginMsg = new LoginMessage();
+                loginMsg.setUserName(tokens[1]);
+                loginMsg.setPassWord(tokens[2]);
+                loginMsg.setType(type);
+                return loginMsg;
+
             default:
                 throw new ProtocolException("Invalid type: " + type);
         }
@@ -45,6 +53,12 @@ public class StringProtocol implements Protocol {
                 builder.append(String.valueOf(sendMessage.getSenderId())).append(DELIMITER);
                 builder.append(sendMessage.getText()).append(DELIMITER);
                 break;
+            case MSG_LOGIN:
+                LoginMessage loginMessage = (LoginMessage) msg;
+                builder.append(loginMessage.getUserName()).append(DELIMITER);
+                builder.append(loginMessage.getPassWord()).append(DELIMITER);
+                break;
+
             default:
                 throw new ProtocolException("Invalid type: " + type);
 
@@ -58,7 +72,7 @@ public class StringProtocol implements Protocol {
         try {
             return Long.parseLong(str);
         } catch (Exception e) {
-            // who care
+            // who cares
         }
         return null;
     }
