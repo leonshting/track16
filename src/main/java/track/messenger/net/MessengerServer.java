@@ -1,18 +1,13 @@
 package track.messenger.net;
 
-import track.messenger.store.MessageStore;
-import track.messenger.store.SqLiteMessageStore;
-import track.messenger.store.SqLiteUserStore;
-import track.messenger.store.UserStore;
+import track.messenger.User;
+import track.messenger.store.*;
 
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -30,20 +25,22 @@ public class MessengerServer implements Runnable {
     private int serverPort = 8080;
     private ServerSocket serverSocket = null;
     private boolean isStopped = false;
-    private ExecutorService threadPool = Executors.newFixedThreadPool(4);
+    private ExecutorService threadPool = Executors.newCachedThreadPool();
 
     private static final String dbURL = "jdbc:sqlite:/Users/leonshting/Programming/track/" +
             "track16/src/main/resources/messenger";
     private UserStore userStore;
     private MessageStore messageStore;
+    private ChatStore chatStore;
 
-    public Map<Socket, Session> sessions = null;
+    public Map<User, Session> sessions = null;
 
     public MessengerServer(int port) {
         sessions = new ConcurrentHashMap<>();
         this.serverPort = port;
         userStore = new SqLiteUserStore(dbURL);
         messageStore = new SqLiteMessageStore(dbURL);
+        chatStore = new SqLiteChatStore(dbURL);
     }
 
     public void run() {
@@ -100,8 +97,8 @@ public class MessengerServer implements Runnable {
         public void run() {
             try (InputStream input = clientSocket.getInputStream();
                  OutputStream output = clientSocket.getOutputStream()) {
-                Session session = new Session(clientSocket, input, output, userStore, messageStore);
-                sessions.put(clientSocket, session);
+                Session session = new Session(clientSocket, input, output, userStore,
+                        messageStore, chatStore, sessions);
                 session.sessionRun();
             } catch (IOException e) {
                 e.printStackTrace();

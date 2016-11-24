@@ -8,6 +8,11 @@ public class LoginMessage extends Message {
     private String userName;
     private String passWord;
 
+    public LoginMessage() {
+        setRaw("login message");
+        setType(Type.MSG_LOGIN);
+    }
+
     public String getUserName() {
         return userName;
     }

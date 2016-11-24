@@ -13,7 +13,7 @@ import track.messenger.messages.Type;
  */
 public class StringProtocol implements Protocol {
 
-    static private Logger log = LoggerFactory.getLogger(StringProtocol.class);
+    static Logger log = LoggerFactory.getLogger(StringProtocol.class);
 
     public static final String DELIMITER = ";";
 
@@ -26,9 +26,10 @@ public class StringProtocol implements Protocol {
         switch (type) {
             case MSG_TEXT:
                 TextMessage textMsg = new TextMessage();
-                textMsg.setSenderId(parseLong(tokens[1]));
+                textMsg.setChatId(parseLong(tokens[1]));
                 textMsg.setText(tokens[2]);
                 textMsg.setType(type);
+                textMsg.setRaw(str);
                 return textMsg;
             case MSG_LOGIN:
                 LoginMessage loginMsg = new LoginMessage();
@@ -50,8 +51,9 @@ public class StringProtocol implements Protocol {
         switch (type) {
             case MSG_TEXT:
                 TextMessage sendMessage = (TextMessage) msg;
-                builder.append(String.valueOf(sendMessage.getSenderId())).append(DELIMITER);
+                builder.append(String.valueOf(sendMessage.getChatId())).append(DELIMITER);
                 builder.append(sendMessage.getText()).append(DELIMITER);
+
                 break;
             case MSG_LOGIN:
                 LoginMessage loginMessage = (LoginMessage) msg;
@@ -65,6 +67,7 @@ public class StringProtocol implements Protocol {
 
         }
         log.info("encoded: {}", builder.toString());
+        msg.setRaw(builder.toString());
         return builder.toString().getBytes();
     }
 

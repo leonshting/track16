@@ -2,6 +2,7 @@ package track.messenger.store;
 
 import track.messenger.messages.Message;
 
+import java.sql.SQLException;
 import java.util.List;
 
 public interface MessageStore {
@@ -28,7 +29,7 @@ public interface MessageStore {
     /**
      * Добавить сообщение в чат
      */
-    void addMessage(Long chatId, Message message);
+    void addMessage(Long chatId, Message message) throws SQLException;
 
     /**
      * Добавить пользователя к чату

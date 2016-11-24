@@ -8,6 +8,16 @@ import java.util.Objects;
 public class TextMessage extends Message {
     private String text;
 
+    private Long chatId;
+
+    public Long getChatId() {
+        return chatId;
+    }
+
+    public void setChatId(Long chatId) {
+        this.chatId = chatId;
+    }
+
     public String getText() {
         return text;
     }
@@ -16,6 +26,10 @@ public class TextMessage extends Message {
         this.text = text;
     }
 
+    public TextMessage() {
+        setType(Type.MSG_TEXT);
+    }
+    
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -40,6 +54,7 @@ public class TextMessage extends Message {
     public String toString() {
         return "TextMessage{" +
                 "text='" + text + '\'' +
+                "chat_id='" + chatId + '\'' +
                 '}';
     }
 }

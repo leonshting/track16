@@ -34,7 +34,7 @@ public class SqLiteUserStore implements UserStore {
     }
 
     @Override
-    public User getUser(String login, String pass) {
+    public synchronized User getUser(String login, String pass) {
 
         try (Connection connection = DriverManager.getConnection(url)) {
             PreparedStatement stmt = connection.prepareStatement("SELECT * FROM users WHERE name = ?");

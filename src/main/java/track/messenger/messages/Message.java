@@ -11,6 +11,16 @@ public abstract class Message implements Serializable {
     private Long senderId;
     private Type type;
 
+    private String raw;
+
+    public String getRaw() {
+        return raw;
+    }
+
+    public void setRaw(String raw) {
+        this.raw = raw;
+    }
+
     public Long getId() {
         return id;
     }

@@ -120,8 +120,8 @@ public class MessengerClient {
             case "/login":
                 LoginMessage loginMessage = new LoginMessage();
                 loginMessage.setType(Type.MSG_LOGIN);
-                loginMessage.setPassWord(tokens[1]);
-                loginMessage.setUserName(tokens[2]);
+                loginMessage.setPassWord(tokens[2]);
+                loginMessage.setUserName(tokens[1]);
                 send(loginMessage);
                 break;
             case "/help":
@@ -131,7 +131,9 @@ public class MessengerClient {
                 // FIXME: пример реализации для простого текстового сообщения
                 TextMessage sendMessage = new TextMessage();
                 sendMessage.setType(Type.MSG_TEXT);
-                sendMessage.setText(tokens[1]);
+                sendMessage.setText(tokens[2]);
+                sendMessage.setChatId(new Long((tokens[1])));
+
                 send(sendMessage);
                 break;
             // TODO: implement another types from wiki

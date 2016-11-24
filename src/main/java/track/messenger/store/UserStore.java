@@ -27,4 +27,5 @@ public interface UserStore {
      * return null if user not found
      */
     User getUserById(Long id);
+
 }
