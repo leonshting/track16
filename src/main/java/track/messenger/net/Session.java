@@ -11,14 +11,14 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import track.messenger.User;
-import track.messenger.messages.LoginMessage;
-import track.messenger.messages.Message;
-import track.messenger.messages.TextMessage;
+import track.messenger.messagehandling.MessageHandler;
+import track.messenger.messages.*;
 import track.messenger.store.ChatStore;
 import track.messenger.store.MessageStore;
 import track.messenger.store.UserStore;
@@ -32,124 +32,51 @@ import static java.lang.System.out;
  * Бизнес логика представлена объектом юзера - владельца сессии.
  * Сетевая часть привязывает нас к определнному соединению по сети (от клиента)
  */
+//@Data lombok getters and setters
 public class Session {
 
     static Logger log = LoggerFactory.getLogger(MessengerClient.class);
 
     private boolean isClosed;
+
     /**
      * Пользователь сессии, пока не прошел логин, user == null
      * После логина устанавливается реальный пользователь
      */
 
     private Socket socket;
+    private MessageHandler handler;
 
     /**
      * С каждым сокетом связано 2 канала in/out
      */
+
     private InputStream in;
     private OutputStream out;
     private User user;
 
     private Protocol protocol;
+
     private UserStore userStore;
     private MessageStore messageStore;
     private ChatStore chatStore;
+
     private Map<User, Session> sessions;
-    public Map<Long, Boolean> chatsUp;
-    public Map<Long, Message> newMessages;
-    //probably queue is better
+    public BlockingQueue newMessages;
+    public AtomicBoolean chatsUp;
     public final Object chatsUpLock;
-
     private List<Long> chatList;
-
 
     public UserStore getUserStore() {
         return userStore;
     }
 
-
     public MessageStore getMessageStore() {
         return messageStore;
     }
 
-
     public boolean isClosed() {
         return isClosed;
-    }
-
-    public void afterLogin() {
-        sessions.put(user, this);
-        chatList = chatStore.getChatsByUser(user.getId());
-    }
-
-    public Session() {
-        user = null;
-        socket = null;
-        isClosed = true;
-
-        protocol = new StringProtocol();
-        chatsUpLock = new Object();
-    }
-
-    public Session(Socket socket, InputStream in, OutputStream out, UserStore us,
-                   MessageStore ms, ChatStore cs, Map<User, Session> sessions) {
-        this.socket = socket;
-        this.userStore = us;
-        this.messageStore = ms;
-        this.chatStore = cs;
-        this.in = in;
-        this.out = out;
-        this.sessions = sessions;
-
-        chatsUpLock = new Object();
-        chatsUp = new ConcurrentHashMap<>();
-        newMessages = new ConcurrentHashMap<>();
-        isClosed = false;
-        protocol = new StringProtocol();
-    }
-
-    class MapNotifier implements Runnable {
-
-        public void run() {
-            try {
-                while (!isClosed()) {
-                    synchronized (chatsUpLock) {
-                        chatsUpLock.wait();
-                        for (Map.Entry<Long, Boolean> entry : chatsUp.entrySet()) {
-                            if (entry.getValue()) {
-                                entry.setValue(Boolean.FALSE);
-                                send(newMessages.get(entry.getKey()));
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public void sessionRun() {
-        try {
-            Thread chatListener = new Thread(new MapNotifier());
-            chatListener.start();
-            while (!isClosed()) {
-                byte[] buf = new byte[32 * 1024];
-                int readBytes = 0;
-                readBytes = in.read(buf);
-                Message message = protocol.decode(buf);
-                message.setSenderId((user != null) ? user.getId() : 0);
-                onMessage(message);
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ProtocolException e) {
-            e.printStackTrace();
-            /* TODO: exception handling */
-        }
-
     }
 
     public User getUser() {
@@ -176,6 +103,94 @@ public class Session {
         this.out = out;
     }
 
+    public Map<User, Session> getSessions() {
+        return sessions;
+    }
+
+    public List<Long> getChatList() {
+
+        return chatList;
+    }
+
+    public ChatStore getChatStore() {
+
+        return chatStore;
+    }
+
+    public void afterLogin() throws SQLException {
+        sessions.put(user, this);
+        chatList = chatStore.getChatsByUser(user.getId());
+    }
+
+    public Session() {
+        user = null;
+        socket = null;
+        isClosed = true;
+
+        chatsUp = new AtomicBoolean(false);
+        protocol = new StringProtocol();
+        chatsUpLock = new Object();
+        newMessages = new ArrayBlockingQueue<Long>(20);
+
+        handler = new MessageHandler(this);
+    }
+
+    public Session(Socket socket, InputStream in, OutputStream out, UserStore us,
+                   MessageStore ms, ChatStore cs, Map<User, Session> sessions) {
+        this.socket = socket;
+        this.userStore = us;
+        this.messageStore = ms;
+        this.chatStore = cs;
+        this.in = in;
+        this.out = out;
+        this.sessions = sessions;
+
+        chatsUp = new AtomicBoolean(false);
+        chatsUpLock = new Object();
+        newMessages = new ArrayBlockingQueue<Long>(20);
+        isClosed = false;
+        protocol = new StringProtocol();
+
+        handler = new MessageHandler(this);
+    }
+
+    class MapNotifier implements Runnable {
+
+        public void run() {
+            try {
+                while (!isClosed()) {
+                    synchronized (chatsUpLock) {
+                        chatsUpLock.wait();
+                        if (chatsUp.get()) {
+                            chatsUp.set(false);
+                            while (!newMessages.isEmpty()) {
+                                send(messageStore.getMessageById((Long) newMessages.take()));
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void sessionRun() {
+        try {
+            Thread chatListener = new Thread(new MapNotifier());
+            chatListener.start();
+            while (!isClosed()) {
+                byte[] buf = new byte[32 * 1024];
+                int readBytes = 0;
+                readBytes = in.read(buf);
+                Message message = protocol.decode(buf);
+                message.setSenderId((user != null) ? user.getId() : 0);
+                onMessage(message);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     public synchronized void send(Message msg) throws ProtocolException, IOException {
         log.info(msg.toString());
@@ -183,50 +198,16 @@ public class Session {
         out.flush();
     }
 
-    public synchronized void onMessage(Message msg) {
-        switch (msg.getType()) {
-            case MSG_LOGIN:
-                LoginMessage loginMessage = (LoginMessage) msg;
-                user = userStore.getUser(loginMessage.getUserName(), loginMessage.getPassWord());
-                if (user != null) {
-                    afterLogin();
-                }
-                break;
 
-            case MSG_TEXT:
-                if (user != null) {
-                    TextMessage textMessage = (TextMessage) msg;
-                    try {
-                        if (chatStore.chatExists(textMessage.getChatId()) &&
-                                chatList.contains(textMessage.getChatId())) {
-                            messageStore.addMessage(textMessage.getChatId(), textMessage);
-                            for (Session s : sessions.values()) {
-                                synchronized (s.chatsUpLock) {
-                                    if (this != s) {
-                                        s.chatsUp.put(textMessage.getChatId(), Boolean.TRUE);
-                                        s.newMessages.put(textMessage.getChatId(), textMessage);
-                                        s.chatsUpLock.notify();
-                                    }
-                                }
-                            }
-                        } else {
-                            TextMessage tmsg = new TextMessage();
-                            tmsg.setText("no such chat");
-                            //as exception also
-                            send(tmsg);
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+    public synchronized void onMessage(Message msg) throws SQLException {
 
-
-                }
-                //TODO: ^^^
-                //      ||| rewrite in terms of exceptions
-                // TODO: Handle unsuccesful login
-                break;
-
-            default:
+        Message response = handler.executeOrRespond(msg);
+        try {
+            if (response != null) {
+                send(response);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -238,6 +219,7 @@ public class Session {
             e.printStackTrace();
         } finally {
             isClosed = true;
+            log.info("Session closed\n");
         }
     }
 }

@@ -1,12 +1,10 @@
 package track.messenger.net;
 
+import com.sun.xml.internal.bind.v2.TODO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import track.messenger.messages.LoginMessage;
-import track.messenger.messages.Message;
-import track.messenger.messages.TextMessage;
-import track.messenger.messages.Type;
+import track.messenger.messages.*;
 
 /**
  * Простейший протокол передачи данных
@@ -37,7 +35,26 @@ public class StringProtocol implements Protocol {
                 loginMsg.setPassWord(tokens[2]);
                 loginMsg.setType(type);
                 return loginMsg;
-
+            case MSG_INFO:
+                InfoMessage infoMessage = new InfoMessage();
+                if (tokens.length >= 2) {
+                    infoMessage.setUserId(parseLong(tokens[1]));
+                } else {
+                    infoMessage.setUserId(-1L);
+                }
+                return infoMessage;
+            case MSG_INFO_RESULT:
+                InfoResultMessage infoResultMessage = new InfoResultMessage();
+                infoResultMessage.setUserId(parseLong(tokens[2]));
+                infoResultMessage.setInfo(tokens[1]);
+                return infoResultMessage;
+            case MSG_STATUS:
+                StatusMessage statusMessage = new StatusMessage();
+                statusMessage.setStatusMsg(tokens[1]);
+                return statusMessage;
+            case MSG_QUIT:
+                QMessage quitMessage = new QMessage();
+                return quitMessage;
             default:
                 throw new ProtocolException("Invalid type: " + type);
         }
@@ -53,14 +70,27 @@ public class StringProtocol implements Protocol {
                 TextMessage sendMessage = (TextMessage) msg;
                 builder.append(String.valueOf(sendMessage.getChatId())).append(DELIMITER);
                 builder.append(sendMessage.getText()).append(DELIMITER);
-
                 break;
             case MSG_LOGIN:
                 LoginMessage loginMessage = (LoginMessage) msg;
                 builder.append(loginMessage.getUserName()).append(DELIMITER);
                 builder.append(loginMessage.getPassWord()).append(DELIMITER);
                 break;
-
+            case MSG_STATUS:
+                StatusMessage statusMessage = (StatusMessage) msg;
+                builder.append(statusMessage.getStatusMsg()).append(DELIMITER);
+                break;
+            case MSG_INFO_RESULT:
+                InfoResultMessage infoResultMessage = (InfoResultMessage) msg;
+                builder.append(infoResultMessage.getInfo()).append(DELIMITER);
+                builder.append(infoResultMessage.getUserId()).append(DELIMITER);
+                break;
+            case MSG_INFO:
+                InfoMessage infoMessage = (InfoMessage) msg;
+                builder.append(infoMessage.getUserId()).append(DELIMITER);
+                break;
+            case MSG_QUIT:
+                break;
             default:
                 throw new ProtocolException("Invalid type: " + type);
 
@@ -75,8 +105,8 @@ public class StringProtocol implements Protocol {
         try {
             return Long.parseLong(str);
         } catch (Exception e) {
-            // who cares
+            e.printStackTrace();
+            return null;
         }
-        return null;
     }
 }

@@ -5,38 +5,55 @@ import org.slf4j.LoggerFactory;
 import track.messenger.User;
 import track.messenger.teacher.client.MessengerClient;
 
+import javax.sql.DataSource;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 /**
  * Created by leonshting on 22.11.16.
  */
-public class SqLiteUserStore implements UserStore {
-    private final String url;
-    static Logger log = LoggerFactory.getLogger(MessengerClient.class);
 
-    public SqLiteUserStore(String url) {
-        this.url = url;
+public class SqLiteUserStore extends AbstractStore implements UserStore {
+
+
+    public SqLiteUserStore(DataSource dataSource) {
+        super(dataSource);
     }
 
-    @Override
-    public User addUser(User user) {
-        return null;
+
+    public User addUser(User user, String pass) {
+        try (Connection connection = connFactory.getConnection()) {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            PreparedStatement stmt = connection.prepareStatement(
+                    "INSERT INTO users (name, password_hash) VALUES = (?,?)");
+            stmt.setString(1, user.getUserName());
+            stmt.setString(2, javax.xml.bind.DatatypeConverter.printHexBinary(md.digest(pass.getBytes())));
+            return user;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     @Override
     public User updateUser(User user) {
-        return null;
+        try (Connection connection = connFactory.getConnection()) {
+            PreparedStatement stmt = connection.prepareStatement("UPDATE users SET name = ? WHERE id = ?");
+            stmt.setString(1, user.getUserName());
+            stmt.setLong(2, user.getId());
+            return user;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     @Override
     public synchronized User getUser(String login, String pass) {
-
-        try (Connection connection = DriverManager.getConnection(url)) {
+        try (Connection connection = connFactory.getConnection()) {
             PreparedStatement stmt = connection.prepareStatement("SELECT * FROM users WHERE name = ?");
             stmt.setString(1, login);
             ResultSet rs = stmt.executeQuery();
@@ -46,19 +63,10 @@ public class SqLiteUserStore implements UserStore {
                 User user = new User();
                 user.setId(rs.getInt("id"));
                 user.setUserName(rs.getString("name"));
-
                 return user;
             } else {
-                throw new Exception("wrong password");
+                return null;
             }
-
-        } catch (java.sql.SQLException e) {
-            return null;
-        } catch (NoSuchAlgorithmException e) {
-            log.error("Failed to process connection: {}", e);
-            e.printStackTrace();
-            return null;
-            //Probably should stop an execution
         } catch (Exception e) {
             return null;
         }
@@ -66,7 +74,7 @@ public class SqLiteUserStore implements UserStore {
 
     @Override
     public User getUserById(Long id) {
-        try (Connection connection = DriverManager.getConnection(url)) {
+        try (Connection connection = connFactory.getConnection()) {
             PreparedStatement stmt = connection.prepareStatement("SELECT * FROM users WHERE id = ?");
             stmt.setInt(1, id.intValue());
             ResultSet rs = stmt.executeQuery();
@@ -74,7 +82,8 @@ public class SqLiteUserStore implements UserStore {
             user.setId(rs.getInt("id"));
             user.setUserName(rs.getString("name"));
             return user;
-        } catch (java.sql.SQLException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }

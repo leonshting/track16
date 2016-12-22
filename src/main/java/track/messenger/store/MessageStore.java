@@ -1,20 +1,13 @@
 package track.messenger.store;
 
 import track.messenger.messages.Message;
+import track.messenger.net.ProtocolException;
 
 import java.sql.SQLException;
 import java.util.List;
 
 public interface MessageStore {
-    /**
-     * получаем список ид пользователей заданного чата
-     */
-    List<Long> getChatsByUserId(Long userId);
 
-    /**
-     * получить информацию о чате
-     */
-    //Chat getChatById(Long chatId);
 
     /**
      * Список сообщений из чата
@@ -24,16 +17,12 @@ public interface MessageStore {
     /**
      * Получить информацию о сообщении
      */
-    Message getMessageById(Long messageId);
+    Message getMessageById(Long messageId) throws SQLException, ProtocolException;
 
     /**
      * Добавить сообщение в чат
      */
-    void addMessage(Long chatId, Message message) throws SQLException;
+    Long addMessage(Long chatId, Message message) throws SQLException;
 
-    /**
-     * Добавить пользователя к чату
-     */
-    void addUserToChat(Long userId, Long chatId);
 
 }

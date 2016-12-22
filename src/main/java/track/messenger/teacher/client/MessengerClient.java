@@ -5,16 +5,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Scanner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import track.messenger.messages.LoginMessage;
-import track.messenger.messages.Message;
-import track.messenger.messages.TextMessage;
-import track.messenger.messages.Type;
+import track.messenger.messages.*;
 import track.messenger.net.Protocol;
 import track.messenger.net.ProtocolException;
 import track.messenger.net.StringProtocol;
@@ -125,18 +123,22 @@ public class MessengerClient {
                 send(loginMessage);
                 break;
             case "/help":
-                // TODO: реализация
+                System.out.print("Here's our help message");
                 break;
             case "/text":
-                // FIXME: пример реализации для простого текстового сообщения
                 TextMessage sendMessage = new TextMessage();
                 sendMessage.setType(Type.MSG_TEXT);
                 sendMessage.setText(tokens[2]);
-                sendMessage.setChatId(new Long((tokens[1])));
+                sendMessage.setChatId(new Long(tokens[1]));
 
                 send(sendMessage);
                 break;
-            // TODO: implement another types from wiki
+            case "/info":
+                InfoMessage infoMessage = new InfoMessage();
+                infoMessage.setUserId(new Long(tokens[1]));
+                send(infoMessage);
+                break;
+            case "/chat_create":
 
             default:
                 log.error("Invalid input: " + line);
@@ -150,6 +152,19 @@ public class MessengerClient {
         log.info(msg.toString());
         out.write(protocol.encode(msg));
         out.flush(); // принудительно проталкиваем буфер с данными
+    }
+
+    public void close() {
+        try {
+            send(new QMessage());
+            in.close();
+            out.close();
+        } catch (IOException e) {
+            log.error("Error on closing streams");
+        } catch (ProtocolException e) {
+            log.error("Error quit message");
+        }
+
     }
 
     public static void main(String[] args) throws Exception {
@@ -180,8 +195,7 @@ public class MessengerClient {
             log.error("Application failed.", e);
         } finally {
             if (client != null) {
-                // TODO
-//                client.close();
+                client.close();
             }
         }
     }

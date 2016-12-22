@@ -1,5 +1,6 @@
 package track.messenger.store;
 
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -7,9 +8,11 @@ import java.util.List;
  */
 public interface ChatStore {
 
-    List<Long> getChatsByUser(Long user);
+    List<Long> getChatsByUser(Long user) throws SQLException;
 
-    List<Long> getUsersByChat(Long chat);
+    List<Long> getUsersByChat(Long chat) throws SQLException;
 
-    boolean chatExists(Long chat);
+    boolean chatExists(Long chat) throws SQLException;
+
+    void addUserToChat(Long userId, Long chatId);
 }

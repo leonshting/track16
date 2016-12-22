@@ -22,25 +22,25 @@ import static java.lang.System.out;
 
 
 public class MessengerServer implements Runnable {
-    private int serverPort = 8080;
-    private ServerSocket serverSocket = null;
-    private boolean isStopped = false;
-    private ExecutorService threadPool = Executors.newCachedThreadPool();
 
+
+    private int serverPort;
     private static final String dbURL = "jdbc:sqlite:/Users/leonshting/Programming/track/" +
             "track16/src/main/resources/messenger";
-    private UserStore userStore;
-    private MessageStore messageStore;
-    private ChatStore chatStore;
+
+    private ServerSocket serverSocket;
+    private boolean isStopped;
+    private ExecutorService threadPool = Executors.newCachedThreadPool();
+
+    private StoreSet storeSet;
 
     public Map<User, Session> sessions = null;
 
     public MessengerServer(int port) {
         sessions = new ConcurrentHashMap<>();
-        this.serverPort = port;
-        userStore = new SqLiteUserStore(dbURL);
-        messageStore = new SqLiteMessageStore(dbURL);
-        chatStore = new SqLiteChatStore(dbURL);
+        serverPort = port;
+        StoreSet.setUrl(dbURL);
+        storeSet = StoreSet.getInstance();
     }
 
     public void run() {
@@ -57,7 +57,7 @@ public class MessengerServer implements Runnable {
                 throw new RuntimeException(
                         "Error accepting client connection", e);
             }
-            this.threadPool.execute(new ServerWorker(clientSocket));
+            this.threadPool.execute(new ServerWorker(clientSocket, storeSet, sessions));
 
         }
         this.threadPool.shutdown();
@@ -82,28 +82,6 @@ public class MessengerServer implements Runnable {
             this.serverSocket = new ServerSocket(this.serverPort);
         } catch (IOException e) {
             throw new RuntimeException("Cannot open port", e);
-        }
-    }
-
-
-    public class ServerWorker implements Runnable {
-
-        protected Socket clientSocket = null;
-
-        public ServerWorker(Socket clientSocket) {
-            this.clientSocket = clientSocket;
-        }
-
-        public void run() {
-            try (InputStream input = clientSocket.getInputStream();
-                 OutputStream output = clientSocket.getOutputStream()) {
-                Session session = new Session(clientSocket, input, output, userStore,
-                        messageStore, chatStore, sessions);
-                session.sessionRun();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
         }
     }
 

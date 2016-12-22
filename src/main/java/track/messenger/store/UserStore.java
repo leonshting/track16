@@ -7,7 +7,7 @@ public interface UserStore {
      * Добавить пользователя в хранилище
      * Вернуть его же
      */
-    User addUser(User user);
+    User addUser(User user, String pass);
 
     /**
      * Обновить информацию о пользователе
